@@ -73,6 +73,46 @@ func GetInvoice() gin.HandlerFunc {
 }
 func CreateInvoice() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
+		var invoice models.Invoice
+		if err := c.BindJSON(&invoice); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		var order models.Order
+		err := orderCollection.FindOne(ctx, bson.M{"order_id": invoice.Order_id}).Decode(&order)
+		defer cancel()
+
+		if err != nil {
+			msg := fmt.Sprintf("mesage:Order was not found")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": msg})
+			return
+		}
+		status := "PENDING"
+
+		if invoice.Payment_status == nil {
+			invoice.Payment_status = &status
+		}
+		invoice.Payment_due_date, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
+		invoice.Created_at, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
+		invoice.Updated_at, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
+		invoice.ID = primitive.NewObjectID()
+		invoice.Invoice_id = invoice.ID.Hex()
+
+		validationErr := validate.Struct(invoice)
+		if validationErr != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": validationErr.Error()})
+			return
+		}
+		result, insertErr := invoiceCollection.InsertOne(ctx, invoice)
+		if insertErr != nil {
+			msg := fmt.Sprintf("invoice item was not created")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": msg})
+			return
+		}
+		defer cancel()
+
+		c.JSON(http.StatusOK, result)
 	}
 }
 func UpdateInvoice() gin.HandlerFunc {
@@ -90,10 +130,11 @@ func UpdateInvoice() gin.HandlerFunc {
 
 		var updateObj primitive.D
 		if invoice.Payment_method != nil {
+			updateObj = append(updateObj, bson.E{Key: "payment_method", Value: invoice.Payment_method})
 
 		}
 		if invoice.Payment_status != nil {
-
+			updateObj = append(updateObj, bson.E{Key: "payment_status", Value: invoice.Payment_status})
 		}
 
 		invoice.Updated_at, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
