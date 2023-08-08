@@ -137,7 +137,7 @@ func UpdateOrderItem() gin.HandlerFunc {
 
 			upsert := true
 			opt := options.UpdateOptions{
-				upsert: &upsert,
+				Upsert: &upsert,
 			}
 			result, err := OrderItemCollection.UpdateOne(
 				ctx,
@@ -147,6 +147,13 @@ func UpdateOrderItem() gin.HandlerFunc {
 				},
 				&opt,
 			)
+			if err != nil {
+				msg := "order update failed"
+				c.JSON(http.StatusInternalServerError, gin.H{"error": msg})
+				return
+			}
+			defer cancel()
+			c.JSON(http.StatusOK, result)
 		}
 
 		orderItem.Updated_at, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))

@@ -105,7 +105,7 @@ func UpdateMenu() gin.HandlerFunc {
 			if menu.Category != "" {
 				updateObj = append(updateObj, bson.E{Key: "name", Value: menu.Category})
 			}
-			menu.Updated_at, _ = time.Parse(time.RubyDate, time.Now().Format(time.RubyDate))
+			menu.Updated_at, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
 			updateObj = append(updateObj, bson.E{Key: "updated_at", Value: menu.Updated_at})
 			upsert := true
 			opt := options.UpdateOptions{
