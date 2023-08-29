@@ -16,6 +16,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 var orderCollection *mongo.Collection = database.OpenCollection(database.Client, "order")
 
 func GetOrders() gin.HandlerFunc {
@@ -126,7 +127,7 @@ func UpdateOrder() gin.HandlerFunc {
 			ctx,
 			filter,
 			bson.D{
-				{Key: "$st", Value: updateObj},
+				{Key: "$set", Value: updateObj},
 			},
 			&opt,
 		)
@@ -147,6 +148,7 @@ func OrderItemOrderCreator(order models.Order) string {
 	order.Order_id = order.ID.Hex()
 
 	orderCollection.InsertOne(ctx, order)
+
 	defer cancel()
 	return order.Order_id
 }
