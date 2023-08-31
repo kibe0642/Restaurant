@@ -36,8 +36,6 @@ func GetOrders() gin.HandlerFunc {
 }
 func GetOrder() gin.HandlerFunc {
 	return func(c *gin.Context) {
-
-		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 		orderId := c.Param("order_id")
 		var order models.Order
 		err := menuCollection.FindOne(ctx, bson.M{"order_id": orderId}).Decode(&order)
@@ -51,7 +49,6 @@ func GetOrder() gin.HandlerFunc {
 }
 func CreateOrder() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 		var table models.Table
 		var order models.Order
 
@@ -92,7 +89,6 @@ func CreateOrder() gin.HandlerFunc {
 }
 func UpdateOrder() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 
 		var table models.Table
 		var order models.Order
