@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"golang-Restaurant/database"
+	"golang-Restaurant/helpers"
 	"golang-Restaurant/models"
 	"log"
 	"net/http"
@@ -122,7 +123,7 @@ func SignUp() gin.HandlerFunc {
 		user.User_id = user.ID.Hex()
 
 		//generate and refresh the tokens
-		token, refreshToken, _ := helper.generateAllTokens(*user.Email, user.First_name, user.Last_name, user.User_id)
+		token, refreshToken, _ := helpers.GenerateAllTokens(*user.Email, *user.First_name, *user.Last_name, user.User_id)
 		user.Token = &token
 		user.Refresh_token = &refreshToken
 		//if all is well, insert new user into user collection
@@ -161,9 +162,9 @@ func Login() gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": msg})
 		}
 		//if ok,generate tokens
-		token, refreshToken, _ := helper.generateAllTokens(*foundUser.First_name, *foundUser.Email, *foundUser.Last_name, *&foundUser.User_id)
+		token, refreshToken, _ := helpers.GenerateAllTokens(*foundUser.First_name, *foundUser.Email, *foundUser.Last_name, *&foundUser.User_id)
 		//update tokens -token and refresh token
-		helper.updateAllTokens(token, refreshToken, foundUser.User_id)
+		helpers.UpdateAllTokens(token, refreshToken, foundUser.User_id)
 		//return statusOK
 		c.JSON(http.StatusOK, foundUser)
 	}
