@@ -2,7 +2,6 @@ package controller
 
 import (
 	"context"
-	"fmt"
 	"golang-Restaurant/database"
 	"golang-Restaurant/helpers"
 	"golang-Restaurant/models"
@@ -33,7 +32,7 @@ func GetUsers() gin.HandlerFunc {
 			page = 1
 		}
 		startIndex := (page - 1) * recordPerPage
-		startIndex, err = strconv.Atoi(c.Query("startIndex"))
+		//startIndex, err = strconv.Atoi(c.Query("startIndex"))
 
 		matchStage := bson.D{{Key: "$match", Value: bson.D{{}}}}
 		projectStage := bson.D{
@@ -78,8 +77,9 @@ func GetUser() gin.HandlerFunc {
 func SignUp() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
-		var user models.User
+		defer cancel()
 
+		var user models.User
 		//convert JSON data incoming from postman/thurderman to something golang understands
 		if err := c.BindJSON(&user); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -99,10 +99,6 @@ func SignUp() gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "error occurred while checking for email"})
 			return
 		}
-
-		//hash the password
-		password := HashPassword(*user.Password)
-		user.Password = &password
 		//check if phone number is already in use
 		count, err = userCollection.CountDocuments(ctx, bson.M{"phone": user.Phone})
 		defer cancel()
@@ -116,6 +112,11 @@ func SignUp() gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "this email or phone number already exist"})
 			return
 		}
+
+		//hash the password
+		password := HashPassword(*user.Password)
+		user.Password = &password
+
 		//create some extra details for user object
 		user.Created_at, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
 		user.Updated_at, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
@@ -129,8 +130,7 @@ func SignUp() gin.HandlerFunc {
 		//if all is well, insert new user into user collection
 		resultInsertionNumber, InsertionErr := userCollection.InsertOne(ctx, user)
 		if InsertionErr != nil {
-			msg := fmt.Sprintf("user item was not created")
-			c.JSON(http.StatusInternalServerError, gin.H{"error": msg})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "user item was not created"})
 			return
 		}
 		defer cancel()
@@ -141,6 +141,7 @@ func SignUp() gin.HandlerFunc {
 func Login() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
+		defer cancel()
 		var user models.User
 		var foundUser models.User
 		//convert data from Postman to golang readable
@@ -157,12 +158,16 @@ func Login() gin.HandlerFunc {
 		}
 		//then verify password
 		passwordIsValid, msg := VerifyPassword(*user.Password, *foundUser.Password)
-		defer cancel()
-		if passwordIsValid != true {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": msg})
+
+		if !passwordIsValid {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": msg})
+			return
 		}
 		//if ok,generate tokens
-		token, refreshToken, _ := helpers.GenerateAllTokens(*foundUser.First_name, *foundUser.Email, *foundUser.Last_name, *&foundUser.User_id)
+		token, refreshToken, err := helpers.GenerateAllTokens(*foundUser.First_name, *foundUser.Email, *foundUser.Last_name, *&foundUser.User_id)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "error generating tokens"})
+		}
 		//update tokens -token and refresh token
 		helpers.UpdateAllTokens(token, refreshToken, foundUser.User_id)
 		//return statusOK
@@ -178,11 +183,8 @@ func HashPassword(password string) string {
 }
 func VerifyPassword(userPassword string, providePassword string) (bool, string) {
 	err := bcrypt.CompareHashAndPassword([]byte(providePassword), []byte(userPassword))
-	check := true
-	msg := ""
 	if err != nil {
-		msg = fmt.Sprintf("login or password is incorrect")
-		check = false
+		return false, "login or password is incorrect"
 	}
-	return check, msg
+	return true, ""
 }

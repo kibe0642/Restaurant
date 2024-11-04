@@ -2,7 +2,6 @@ package controller
 
 import (
 	"context"
-	"fmt"
 	"golang-Restaurant/database"
 	"golang-Restaurant/models"
 	"log"
@@ -74,6 +73,7 @@ func GetInvoice() gin.HandlerFunc {
 func CreateInvoice() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
+		defer cancel()
 		var invoice models.Invoice
 		if err := c.BindJSON(&invoice); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -81,11 +81,9 @@ func CreateInvoice() gin.HandlerFunc {
 		}
 		var order models.Order
 		err := orderCollection.FindOne(ctx, bson.M{"order_id": invoice.Order_id}).Decode(&order)
-		defer cancel()
 
 		if err != nil {
-			msg := fmt.Sprintf("mesage:Order was not found")
-			c.JSON(http.StatusInternalServerError, gin.H{"error": msg})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "mesage:Order was not found"})
 			return
 		}
 		status := "PENDING"
@@ -106,8 +104,8 @@ func CreateInvoice() gin.HandlerFunc {
 		}
 		result, insertErr := invoiceCollection.InsertOne(ctx, invoice)
 		if insertErr != nil {
-			msg := fmt.Sprintf("invoice item was not created")
-			c.JSON(http.StatusInternalServerError, gin.H{"error": msg})
+			//msg := fmt.Sprintf()
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "invoice item was not created"})
 			return
 		}
 		defer cancel()
@@ -118,6 +116,7 @@ func CreateInvoice() gin.HandlerFunc {
 func UpdateInvoice() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
+		defer cancel()
 
 		var invoice models.Invoice
 		invoiceId := c.Param("invoice_id")
@@ -159,8 +158,7 @@ func UpdateInvoice() gin.HandlerFunc {
 			&opt,
 		)
 		if err != nil {
-			msg := fmt.Sprintf("invoice update failed")
-			c.JSON(http.StatusInternalServerError, gin.H{"error": msg})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "invoice update failed"})
 			return
 		}
 		defer cancel()
